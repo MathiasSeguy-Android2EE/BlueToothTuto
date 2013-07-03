@@ -1,0 +1,19 @@
+<resources>
+
+    <!-- Default screen margins, per the Android Design guidelines. -->
+    <color name="translucent">#00000000</color>
+    <color name="translucent_selected">#660000FF</color>
+    <color name="almost_translucent">#66AAAAAA</color>
+    <color name="main_list_background">#990000FF</color>
+    <color name="main_list_odd_background">#FF92B535</color>
+    <color name="shape_list_odd_end_color">#FFABFA0E</color>
+    <color name="button_border">#990000FF</color>
+    <color name="shape_end_color">#FFBBBBFF</color>
+    <color name="shape_start_color">#FF0000FF</color>
+    <color name="shape_stroke_color">#FFFFFFFF</color>
+    <color name="selector_stroke_list_color">#FFFF0000</color>
+    <color name="selector_list_background">#99FFFFFF</color>
+    <color name="layout_background">#88DDDDDD</color>
+    <color name="main_background">#770000FF</color>
+<color name="main_txv_background">#330000FF</color>
+</resources>
