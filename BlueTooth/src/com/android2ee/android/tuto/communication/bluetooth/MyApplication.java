@@ -37,35 +37,61 @@ import java.util.UUID;
 import android.app.Application;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Intent;
 import android.util.Log;
-import android.widget.Toast;
+
+import com.android2ee.android.tuto.communication.bluetooth.gui.CommunicationActivity;
+import com.android2ee.android.tuto.communication.bluetooth.gui.DiscoverDevicesActivity;
+import com.android2ee.android.tuto.communication.bluetooth.service.CommunicationService;
 
 /**
  * @author Mathias Seguy (Android2EE)
  * @goals
- *        This class aims to:
- *        <ul>
- *        <li></li>
- *        </ul>
+ *        This class aims to the global state of the application
+ *        Here it focused on blueToothSocket and on start/stoip the communication service
  */
 public class MyApplication extends Application {
 	/******************************************************************************************/
 	/** Attributes **************************************************************************/
 	/******************************************************************************************/
-	/** * The unique UUID of the application to etablish a connection */
+	/**
+	 * The unique UUID of the application to etablish a connection
+	 */
 	public static final UUID MY_UUID = UUID.fromString("fa87c0e0-dfef-11de-8a39-0800200c9a66");
-	/** * The unique bluetooth server name use for connection */
+	/**
+	 * The unique bluetooth server name use for connection
+	 */
 	public static final String MY_BLUETOOTH_SERVER_NAME = "blueToothServerName11021974";
-	/** * The BlueTooth socket */
-	private  BluetoothSocket bluetoothSocket;
+	/**
+	 * The BlueTooth socket
+	 */
+	private BluetoothSocket bluetoothSocket;
+	/**
+	 * The input stream from the socket
+	 */
+	private InputStream inputSocketStream = null;
+	/**
+	 * The output stream from the socket
+	 */
+	private OutputStream outputSocketStream = null;
 	/**
 	 * The selected device to connect with
 	 */
 	private BluetoothDevice remoteDevice = null;
 	/**
-	 * The selected device to connect with
+	 * The name of this device
 	 */
 	private String thisDeviceName = null;
+	/**
+	 * The intent that launches and stops the commmunication service
+	 */
+	private Intent communicationServiceIntent;
+	/**
+	 * The communication activity
+	 * We keep a pointer on it when it alives to be able to kill it if the bluetooth connection is
+	 * reset
+	 */
+	private CommunicationActivity comActivity = null;
 	/******************************************************************************************/
 	/** Access Every Where **************************************************************************/
 	/******************************************************************************************/
@@ -90,10 +116,122 @@ public class MyApplication extends Application {
 		super.onCreate();
 		Log.e("MApplication:onCreate", "Application is create");
 		instance = this;
+		communicationServiceIntent = new Intent(getApplicationContext(), CommunicationService.class);
 	}
 
 	/******************************************************************************************/
-	/** Get/set list of found devices **************************************************************************/
+	/** Try managing socket in/out put here **************************************************************************/
+	/******************************************************************************************/
+	/**
+	 * @param bluetoothSocket
+	 *            the bluetoothSocket to set
+	 */
+	public  final void  setBluetoothSocket(BluetoothSocket bluetoothSocket) {
+		Log.e("MyaApplication",
+				"BlueToothSocket set :" + bluetoothSocket + " is connected " + bluetoothSocket.isConnected());
+		// First store it
+		syncBluetoothSocketModifier(true,bluetoothSocket);
+		// Then get the input and output streams
+		try {
+			syncInputSocketStream(true,syncBluetoothSocketModifier(false,null).getInputStream());
+			outputSocketStream = this.bluetoothSocket.getOutputStream();
+		} catch (IOException e) {
+			Log.e("MApplication:onCreate", "setBluetoothSocket", e);
+		}
+		// then launch the communication service
+		startService(communicationServiceIntent);
+	}
+
+	/**
+	 * Ensure that modifications of the Socket is ThreadSafe
+	 * @param set if true then this function act like a setter
+	 * @param bluetoothSocket the socket to set
+	 * @return bluetoothSocket
+	 */
+	private synchronized BluetoothSocket syncBluetoothSocketModifier(boolean set,BluetoothSocket bluetoothSocket) {
+		if(set) {
+			this.bluetoothSocket = bluetoothSocket;
+		}
+		return this.bluetoothSocket;
+	}
+	
+	/**
+	 * Ensure that modification of the inputSocketStream is ThreadSafe
+	 * @param set if true then this function act like a setter
+	 * @param inputSocketStream the inputSocketStream to set
+	 * @return inputSocketStream
+	 */
+	private synchronized InputStream syncInputSocketStream(boolean set,InputStream inputSocketStream) {
+		if(set) {
+			this.inputSocketStream = inputSocketStream;
+		}
+		return this.inputSocketStream;
+	}
+	
+	/**
+	 * Ensure that modification of the outputSocketStream is ThreadSafe
+	 * @param set if true then this function act like a setter
+	 * @param outputSocketStream the outputSocketStream to set
+	 * @return outputSocketStream
+	 */
+	private synchronized OutputStream syncOutputSocketStream(boolean set,OutputStream outputSocketStream) {
+		if(set) {
+			this.outputSocketStream = outputSocketStream;
+		}
+		return this.outputSocketStream;
+	}
+	/**
+	 * @return the inputSocketStream
+	 */
+	public final InputStream getInputSocketStream() {
+		return syncInputSocketStream(false,null);
+	}
+	
+	/**
+	 * @return the outputSocketStream
+	 */
+	public final OutputStream getOutputSocketStream() {
+		return syncOutputSocketStream(false,null);
+	}
+
+	/**
+	 * @return the bluetoothSocket
+	 */
+	public final BluetoothSocket getBluetoothSocket() {
+		return syncBluetoothSocketModifier(false, null);
+	}
+
+	/**
+	 * @param bluetoothSocket
+	 *            the bluetoothSocket to set
+	 */
+	public final void resetBluetoothSocket(boolean startDiscover) {
+		Log.e("MyaApplication", "BlueToothSocket resetBluetoothSocket : was " + bluetoothSocket);
+		stopService(communicationServiceIntent);
+		if (getBluetoothSocket() != null) {
+			try {
+				// then die
+				getBluetoothSocket().close();
+			} catch (IOException e) {
+				Log.e("CommunicationActivity", "resetBluetoothSocket ", e);
+			}
+		}
+		if (comActivity != null) {
+			// kill the communication activity
+			comActivity.finish();
+			comActivity = null;
+			// and start the Discovery one
+			if (startDiscover) {
+				startActivity(new Intent(this, DiscoverDevicesActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+			}
+		}
+		syncBluetoothSocketModifier(true, null);
+		syncInputSocketStream(true, null);
+		syncOutputSocketStream(true, null);
+	}
+
+	/******************************************************************************************/
+	/** Get/set **************************************************************************/
 	/******************************************************************************************/
 	/**
 	 * @return the remoteDevice
@@ -112,45 +250,9 @@ public class MyApplication extends Application {
 	}
 
 	/**
-	 * @return the bluetoothSocket
-	 */
-	public final BluetoothSocket getBluetoothSocket() {
-
-		return bluetoothSocket;
-	}
-
-	/**
-	 * @param bluetoothSocket
-	 *            the bluetoothSocket to set
-	 */
-	public final void setBluetoothSocket(BluetoothSocket bluetoothSocket) {
-		Log.e("MyaApplication","BlueToothSocket set :" + bluetoothSocket + " is connected " + bluetoothSocket.isConnected());
-		this.bluetoothSocket = bluetoothSocket;
-		try {
-			inputSocketStream = this.bluetoothSocket.getInputStream();
-			outputSocketStream = this.bluetoothSocket.getOutputStream();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	/**
-	 * @param bluetoothSocket
-	 *            the bluetoothSocket to set
-	 */
-	public final void resetBluetoothSocket() {
-		Log.e("MyaApplication","BlueToothSocket resetBluetoothSocket : was " + bluetoothSocket );
-		this.bluetoothSocket = null;
-			inputSocketStream = null;
-			outputSocketStream = null;
-	}
-
-	/**
 	 * @return the thisDeviceName
 	 */
 	public final String getThisDeviceName() {
-
 		return thisDeviceName;
 	}
 
@@ -162,30 +264,12 @@ public class MyApplication extends Application {
 		this.thisDeviceName = thisDeviceName;
 	}
 
-	
-	/******************************************************************************************/
-	/** Try managing socket in/out put here **************************************************************************/
-	/******************************************************************************************/
-	/** * The input stream from the socket */
-	private  InputStream inputSocketStream=null;
-	/** * The output stream from the socket */
-	private  OutputStream outputSocketStream=null;
-
 	/**
-	 * @return the inputSocketStream
+	 * @param comActivity
+	 *            the comActivity to set
 	 */
-	public final InputStream getInputSocketStream() {
-		Log.e("MyaApplication","getInputSocketStream BlueToothSocket set :" + bluetoothSocket + " is connected " + bluetoothSocket.isConnected());
-	return inputSocketStream;}
-	
+	public final void setComActivity(CommunicationActivity comActivity) {
+		this.comActivity = comActivity;
+	}
 
-	/**
-	 * @return the outputSocketStream
-	 */
-	public final OutputStream getOutputSocketStream() {
-		Log.e("MyaApplication","getOutputSocketStream BlueToothSocket set :" + bluetoothSocket + " is connected " + bluetoothSocket.isConnected());
-	return outputSocketStream;}
-	
-	
-	
 }

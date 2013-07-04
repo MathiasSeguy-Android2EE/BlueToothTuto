@@ -45,22 +45,28 @@ import com.android2ee.android.tuto.communication.bluetooth.gui.model.BluetoothMe
 /**
  * @author Mathias Seguy (Android2EE)
  * @goals
- *        This class aims to:
- *        <ul>
- *        <li></li>
- *        </ul>
+ *        This class aims to be the arrayAdpater bound to the listView that displays
+ *        BluetoothMessages
  */
 public class BluetoothMessageAdapter extends ArrayAdapter<BluetoothMessage> implements BluetoothAdapterCallBack {
 
+	/**
+	 * Inflater
+	 */
 	LayoutInflater inflater;
 
+	/**
+	 * CallBack
+	 */
 	BluetoothAdapterCallBack callBack;
 
 	/**
+	 * Constructor
+	 * 
 	 * @param context
-	 * @param resource
-	 * @param textViewResourceId
+	 *            The context
 	 * @param objects
+	 *            The list of objects to display
 	 */
 	public BluetoothMessageAdapter(Context context, List<BluetoothMessage> objects) {
 		super(context, R.layout.item, objects);
@@ -69,7 +75,7 @@ public class BluetoothMessageAdapter extends ArrayAdapter<BluetoothMessage> impl
 	}
 
 	// Avoid using temp variable as method's variable
-	private static BluetoothMessage hum;
+	private static BluetoothMessage btMessage;
 	private static View myview;
 	private static ViewHolder viewHolder;
 
@@ -80,7 +86,7 @@ public class BluetoothMessageAdapter extends ArrayAdapter<BluetoothMessage> impl
 	 */
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent) {
-		hum = getItem(position);
+		btMessage = getItem(position);
 		myview = convertView;
 		if (null == myview) {
 			if (getItemViewType(position) == 0) {
@@ -93,8 +99,8 @@ public class BluetoothMessageAdapter extends ArrayAdapter<BluetoothMessage> impl
 		} else {
 			viewHolder = (ViewHolder) myview.getTag();
 		}
-		viewHolder.getTxvMessage().setText(hum.getMessage());
-		viewHolder.getTxvName().setText(hum.getName());
+		viewHolder.getTxvMessage().setText(btMessage.getMessage());
+		viewHolder.getTxvName().setText(btMessage.getName());
 
 		viewHolder.getTxvMessage().setOnClickListener(new MyOnClickListener(position, this));
 		viewHolder.getTxvName().setOnClickListener(new MyOnClickListener(position, this));
@@ -109,44 +115,47 @@ public class BluetoothMessageAdapter extends ArrayAdapter<BluetoothMessage> impl
 	}
 
 	/******************************************************************************************/
-	/** Managing differents view **************************************************************************/
-	/******************************************************************************************/
-
-	/******************************************************************************************/
 	/** Managing the odd/even lines **************************************************************************/
 	/******************************************************************************************/
 
 	@Override
 	public int getViewTypeCount() {
 		// return the number of type managed by the list view:
-		// We have two types, one for the even line, the other for the odd lines
+		// We have two types, one for the message send by the local device, the other for the
+		// message received from the other device
 		return 2;
 	}
 
 	@Override
 	public int getItemViewType(int position) {
 		// return the type of the element to be displayed at position position
-		// We have two types, one for the even line, the other for the odd lines
-		if(((BluetoothMessage)getItem(position)).isLocalDevice()) {
+		// We have two types, one for the message send by the local device, the other for the
+		// message received from the other device
+		if (((BluetoothMessage) getItem(position)).isLocalDevice()) {
 			return 0;
-		}else {
+		} else {
 			return 1;
 		}
-		
+
 	}
 
+	/**
+	 * @author Mathias Seguy (Android2EE)
+	 * @goals
+	 *        This class aims to simple click listener
+	 */
 	public static class MyOnClickListener implements OnClickListener {
-
+		// No comment, sorry
 		int position;
-		BluetoothAdapterCallBack hum;
+		BluetoothAdapterCallBack callback;
 
 		/**
 		 * @param position
 		 */
-		private MyOnClickListener(int position, BluetoothAdapterCallBack hum) {
+		private MyOnClickListener(int position, BluetoothAdapterCallBack callback) {
 			super();
 			this.position = position;
-			this.hum = hum;
+			this.callback = callback;
 		}
 
 		/*
@@ -156,7 +165,7 @@ public class BluetoothMessageAdapter extends ArrayAdapter<BluetoothMessage> impl
 		 */
 		@Override
 		public void onClick(View v) {
-			hum.itemSelected(position);
+			callback.itemSelected(position);
 		}
 
 	}
@@ -166,6 +175,7 @@ public class BluetoothMessageAdapter extends ArrayAdapter<BluetoothMessage> impl
 	/******************************************************************************************/
 
 	public static class ViewHolder {
+		// No comment, sorry, not the goal of that tutorial
 		View boundView;
 		TextView txvName;
 		TextView txvMessage;

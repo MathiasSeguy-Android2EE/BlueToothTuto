@@ -32,18 +32,15 @@ package com.android2ee.android.tuto.communication.bluetooth.gui.model;
 /**
  * @author Mathias Seguy (Android2EE)
  * @goals
- *        This class aims to:
- *        <ul>
- *        <li></li>
- *        </ul>
+ *        This class aims to represents a message sent by bluetooth
  */
 public class BluetoothMessage {
 	/**
-	 * 
+	 * Device name
 	 */
 	private String name = "ME";
 	/**
-	 * 
+	 * Message exchanged between the device
 	 */
 	private String message;
 	/**
@@ -52,13 +49,14 @@ public class BluetoothMessage {
 	private boolean localDevice = true;
 
 	/**
-	 * 
+	 * Constructor
 	 */
 	public BluetoothMessage(String name, String message, boolean localDevice) {
 		this.message = message;
 		this.name = name;
 		this.localDevice = localDevice;
 	}
+
 	/**
 	 * @return the name
 	 */

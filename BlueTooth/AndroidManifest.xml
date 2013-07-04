@@ -35,6 +35,11 @@
             android:label="@string/title_activity_discover_devices" >
         </activity>
 
+        <service
+            android:name="com.android2ee.android.tuto.communication.bluetooth.service.CommunicationService"
+            android:enabled="true"
+            android:exported="false" >
+        </service>
     </application>
 
 </manifest>

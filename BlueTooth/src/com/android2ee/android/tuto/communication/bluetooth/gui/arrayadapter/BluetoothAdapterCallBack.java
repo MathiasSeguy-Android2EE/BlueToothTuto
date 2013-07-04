@@ -32,8 +32,7 @@ package com.android2ee.android.tuto.communication.bluetooth.gui.arrayadapter;
 /**
  * @author Mathias Seguy (Android2EE)
  * @goals
- * This class aims to:
- * <ul><li></li></ul>
+ * This class aims to be the interface between the ArrayAdapter and the activity that contains it
  */
 public interface BluetoothAdapterCallBack {
 

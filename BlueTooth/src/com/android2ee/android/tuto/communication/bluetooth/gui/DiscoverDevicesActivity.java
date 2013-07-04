@@ -1,3 +1,32 @@
+/**<ul>
+ * <li>BlueTooth</li>
+ * <li>com.android2ee.android.tuto.communication.bluetooth</li>
+ * <li>2 juil. 2013</li>
+ * 
+ * <li>======================================================</li>
+ *
+ * <li>Projet : Mathias Seguy Project</li>
+ * <li>Produit par MSE.</li>
+ *
+ /**
+ * <ul>
+ * Android Tutorial, An <strong>Android2EE</strong>'s project.</br> 
+ * Produced by <strong>Dr. Mathias SEGUY</strong>.</br>
+ * Delivered by <strong>http://android2ee.com/</strong></br>
+ *  Belongs to <strong>Mathias Seguy</strong></br>
+ ****************************************************************************************************************</br>
+ * This code is free for any usage except training and can't be distribute.</br>
+ * The distribution is reserved to the site <strong>http://android2ee.com</strong>.</br>
+ * The intelectual property belongs to <strong>Mathias Seguy</strong>.</br>
+ * <em>http://mathias-seguy.developpez.com/</em></br> </br>
+ * 
+ * *****************************************************************************************************************</br>
+ *  Ce code est libre de toute utilisation mais n'est pas distribuable.</br>
+ *  Sa distribution est reservée au site <strong>http://android2ee.com</strong>.</br> 
+ *  Sa propriété intellectuelle appartient à <strong>Mathias Seguy</strong>.</br>
+ *  <em>http://mathias-seguy.developpez.com/</em></br> </br>
+ * *****************************************************************************************************************</br>
+ */
 package com.android2ee.android.tuto.communication.bluetooth.gui;
 
 import java.io.IOException;
@@ -27,20 +56,32 @@ import com.android2ee.android.tuto.communication.bluetooth.R;
 import com.android2ee.android.tuto.communication.bluetooth.gui.arrayadapter.BluetoothAdapterCallBack;
 import com.android2ee.android.tuto.communication.bluetooth.gui.arrayadapter.BluetoothDevicesAdapter;
 
+/**
+ * @author Mathias Seguy (Android2EE)
+ * @goals
+ *        This class aims to display a view to the user that let him:
+ *        <ul>
+ *        <li>=>Discover other devices around him</li>
+ *        <li>=>Be discoverable for others devices</li>
+ *        <li>=>List the device already paired</li>
+ *        <li>=>List the device discovered</li>
+ *        <li>And then choose the device to connect with</li>
+ *        </ul>
+ */
 public class DiscoverDevicesActivity extends Activity implements BluetoothAdapterCallBack {
 	/**
 	 * The Bluetooth Adapter
 	 */
 	private BluetoothAdapter bluetoothAdapter;
+	 /**
+	 * The blueToothServer Socket
+	 */
+	private BluetoothServerSocket bluetoothServerSocket=null;
 	/**
 	 * The unique Request code send with the Intent BluetoothAdapter.ACTION_DISCOVERABLE when
 	 * starting the activty to discover bluetooth
 	 */
 	private final int REQUEST_DISCOVERABLE = 13121974;
-	/**
-	 * A boolean to know if BlueTooth is enabled
-	 */
-	boolean blueToothEnable = false;
 	/**
 	 * The boolean to know is the device is discoverable
 	 */
@@ -49,9 +90,8 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	 * The duration of the discoverable mode
 	 */
 	int discoverableTimeRemaining = 0;
-
 	/**
-	 * To log (simple GUI)
+	 * To log what happens (simple GUI)
 	 */
 	TextView txvLog;
 	/**
@@ -77,7 +117,7 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	 */
 	Button btnStartDiscovery;
 	/**
-	 * The listView
+	 * The listView that displays device
 	 */
 	ListView lstDevices;
 	/**
@@ -102,17 +142,16 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	private boolean listeningNewDevices = false;
 	/**
 	 * Define the brodcast receiver that listen for new Bluetooth Devices Found
-	 * It's activated by the call of
+	 * It's activated by the call of bluetoothAdapter.startDiscovery();
 	 */
 	private BroadcastReceiver newBluetoothFoundBroadCastReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			// retireve the device name
 			String deviceName = intent.getStringExtra(BluetoothDevice.EXTRA_NAME);
-			// retrieve the devicen itself
+			// retrieve the device itself
 			BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 			// store them
-			// store it
 			if (!foundDevices.contains(device)) {
 				foundDevices.add(device);
 				arrayAdapter.notifyDataSetChanged();
@@ -134,13 +173,14 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	private BroadcastReceiver bluetoothDiscoverabilityBroadCastReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			// Find the cuurent scanMode (you can also call EXTRA_PREVIOUS_SCAN_MODE for the
+			// Find the current scanMode (you can also call EXTRA_PREVIOUS_SCAN_MODE for the
 			// previous state)
 			int scanMode = intent.getIntExtra(BluetoothAdapter.EXTRA_SCAN_MODE, -1);
 			switch (scanMode) {
 			case BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE:
 				// Start listening for new devices finding
 				startListeningNewBlueToothDevice();
+				// update the gui
 				strLog.append("SCAN_MODE_CONNECTABLE_DISCOVERABLE \r\n");
 				txvLog.setText(strLog.toString());
 				btnBeDiscoverable.setEnabled(false);
@@ -148,6 +188,7 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 				break;
 			case BluetoothAdapter.SCAN_MODE_CONNECTABLE:
 			case BluetoothAdapter.SCAN_MODE_NONE:
+				// update the gui
 				strLog.append(" SCAN_MODE_NONE \r\n");
 				txvLog.setText(strLog.toString());
 				btnBeDiscoverable.setEnabled(true);
@@ -170,8 +211,9 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 		public void onReceive(Context context, Intent intent) {
 			// The Start Discovery Process
 			if (BluetoothAdapter.ACTION_DISCOVERY_STARTED.equals(intent.getAction())) {
-				// Do a smart stuff:Start listening for new devices finding
+				// Start listening for new devices finding
 				startListeningNewBlueToothDevice();
+				// Try to find if some one around
 				strLog.append("ACTION_DISCOVERY_STARTED \r\n");
 				txvLog.setText(strLog.toString());
 				btnStartDiscovery.setEnabled(false);
@@ -179,6 +221,7 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 			}
 			// The Stop Discovery Process
 			else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(intent.getAction())) {
+				// Stop finding others devices
 				strLog.append("ACTION_DISCOVERY_FINISHED \r\n");
 				txvLog.setText(strLog.toString());
 				btnStartDiscovery.setEnabled(true);
@@ -188,13 +231,17 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	};
 
 	/******************************************************************************************/
-	/** Constructors **************************************************************************/
+	/** Managing life cycle **************************************************************************/
 	/******************************************************************************************/
 
-	/* * (non-Javadoc) * * @see android.app.Activity#onCreate(android.os.Bundle) */
+	/*
+	 * * (non-Javadoc) *
+	 * * @see android.app.Activity#onCreate(android.os.Bundle)
+	 */
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		// Build the view, instanciate graphical elements, add listeners, as usual
 		setContentView(R.layout.activity_discover_devices);
 		txvLog = (TextView) findViewById(R.id.txv_discover_log);
 		btnBeDiscoverable = (Button) findViewById(R.id.btn_be_discoverable);
@@ -219,12 +266,14 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 		lstDevices = (ListView) findViewById(R.id.lsv_devices);
 		initializeListView();
 		bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-		// Initialize the connection as a server
+		// Initialize the server connection
+		// because if the other device wants to connect to you, you need to be able to accept the
+		// connexion and you do that by implementing a server connexion
 		creatingServerSocketConnection();
 	}
 
 	/**
-	 * 
+	 * initializeListView
 	 */
 	private void initializeListView() {
 		// Instanciate the listView
@@ -242,7 +291,7 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	protected void onResume() {
 		Log.e("DiscoverDevicesActivity", "onResume");
 		super.onResume();
-		// We check if the Bluetooth is enable
+		// We check if the Bluetooth state to update the Gui with it
 		if (bluetoothAdapter.isEnabled()) {
 			if (bluetoothAdapter.getScanMode() == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
 				// Ensure the button be discoverable is off
@@ -259,15 +308,16 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 				// Ensure the button be discovery is on
 				btnStartDiscovery.setEnabled(true);
 			}
-			// read bluetooth information
-			String adress = bluetoothAdapter.getAddress();
-			String name = bluetoothAdapter.getName();
-			// First check if the device is already paired with you:
+			// read bluetooth information (just FYI)
+			// String adress = bluetoothAdapter.getAddress();
+			// String name = bluetoothAdapter.getName();
+			// First check if the device is already paired:
 			Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
 			// If there are paired devices
 			if (pairedDevices.size() > 0) {
 				// Loop through paired devices
 				for (BluetoothDevice device : pairedDevices) {
+					//add them to the list of avaiable devices
 					if (!foundDevices.contains(device)) {
 						foundDevices.add(device);
 						arrayAdapter.notifyDataSetChanged();
@@ -284,8 +334,8 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 		}
 		// register the Discoverability state changed
 		registerDiscovBroadcastReceiever();
-		//and kill the socket if it already exists
-		MyApplication.getInstance().resetBluetoothSocket();
+		// and kill the socket if it already exists to avoid socket exception latter
+		MyApplication.getInstance().resetBluetoothSocket(false);
 	}
 
 	/* * (non-Javadoc) * * @see android.app.Activity#onPause() */
@@ -293,9 +343,25 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	protected void onPause() {
 		Log.e("DiscoverDevicesActivity", "onPause");
 		super.onPause();
-		// Unregister elements
 		// unregister the broacastreciever that are used during the discovery phase
 		unregisterDiscoveryBroadcastReceiver();
+	}
+
+	/* (non-Javadoc)
+	 * @see android.app.Activity#onDestroy()
+	 */
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		if(bluetoothServerSocket!=null) {
+			//Try to close the ServerSocket and as consequence kill the thread
+			try {
+				bluetoothServerSocket.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/***************************************************************************************/
@@ -304,26 +370,28 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	/** * Manage the discovery processus */
 	private void manageDiscovering() {
 		// To know if we need to ask for settting the mode Discovery on
-		boolean askForDiscovery = false;
+		boolean askForDiscoverability = false;
 		// First you need to manage the visibility of the device:
 		switch (bluetoothAdapter.getScanMode()) {
 		case BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE:
 			isDiscoverable = true;
 			break;
 		case BluetoothAdapter.SCAN_MODE_CONNECTABLE:
-			askForDiscovery = true;
+			askForDiscoverability = true;
 			break;
 		case BluetoothAdapter.SCAN_MODE_NONE:
-			askForDiscovery = true;
+			askForDiscoverability = true;
 			break;
 		}
 		// Ask for discovery
-		if (askForDiscovery) {
+		if (askForDiscoverability) {
+			//ask to be discoverable
 			startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE), REQUEST_DISCOVERABLE);
 			// here this activity is going on pause
 			// so it can listen for discovery change state (because onPause unregister BroadCast)
 			// => manage button and textView state in onActivityResult
 		} else {
+			//Already discoverable, update gui
 			txvDiscoverableState.setText("SCAN_MODE_CONNECTABLE_DISCOVERABLE");
 			startListeningNewBlueToothDevice();
 			strLog.append("SCAN_MODE_CONNECTABLE_DISCOVERABLE is on \r\n");
@@ -366,31 +434,38 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	 */
 	@Override
 	public void itemSelected(int position) {
+		//A device has been choose by the user, connect with it
 		Toast.makeText(this, "Item selected : " + position, Toast.LENGTH_SHORT).show();
+		//Store the device to connect with
 		MyApplication.getInstance().setRemoteDevice(arrayAdapter.getItem(position));
+		//start the communication activity
 		startCommunicationActivity();
+		//and die
 		finish();
 	}
 
 	/**
-	 * 
+	 * Start the communication activity
 	 */
-	private void startCommunicationActivity() {
+	private synchronized void startCommunicationActivity() {
 		startActivity(new Intent(this, CommunicationActivity.class));
 	}
 
 	/****************************************************************************************/
 	/** Managing connection *******************************************************************/
 	/****************************************************************************************/
+	
 	/**
 	 * * Create a server socket connection Acting like a server
-	 * Because in this activity a server request connection can be send by the other device
+	 * Because in this activity a server request connection can be sent by the other device
 	 * So handle that call, store the socket and start CommunicationActivity
 	 */
 	private void creatingServerSocketConnection() {
 		try {
-			final BluetoothServerSocket bluetoothServerSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(
+			if(bluetoothServerSocket==null) {
+			bluetoothServerSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(
 					MyApplication.MY_BLUETOOTH_SERVER_NAME, MyApplication.MY_UUID);
+			}
 			// The thread that will listen for client to connect
 			Thread acceptServerThread = new Thread() {
 				@Override
@@ -398,6 +473,8 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 					// Keep listening until exception occurs or a socket is returned
 					while (true) {
 						try {
+							//Wait for connection request and accept it
+							//once it's accpeted, store the Socket to use it in the communication activity
 							MyApplication.getInstance().setBluetoothSocket(bluetoothServerSocket.accept());
 							// If a connection was accepted
 							if (MyApplication.getInstance().getBluetoothSocket() != null) {
@@ -406,7 +483,7 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 								// not close the connected BluetoothSocket that's been returned by
 								// accept().
 								bluetoothServerSocket.close();
-								// Do work to manage the connection (in a separate thread)
+								// Launch the communication activity
 								startCommunicationActivity();
 								break;
 							}

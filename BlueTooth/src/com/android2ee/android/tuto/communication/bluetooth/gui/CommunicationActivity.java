@@ -1,3 +1,32 @@
+/**<ul>
+ * <li>BlueTooth</li>
+ * <li>com.android2ee.android.tuto.communication.bluetooth</li>
+ * <li>2 juil. 2013</li>
+ * 
+ * <li>======================================================</li>
+ *
+ * <li>Projet : Mathias Seguy Project</li>
+ * <li>Produit par MSE.</li>
+ *
+ /**
+ * <ul>
+ * Android Tutorial, An <strong>Android2EE</strong>'s project.</br> 
+ * Produced by <strong>Dr. Mathias SEGUY</strong>.</br>
+ * Delivered by <strong>http://android2ee.com/</strong></br>
+ *  Belongs to <strong>Mathias Seguy</strong></br>
+ ****************************************************************************************************************</br>
+ * This code is free for any usage except training and can't be distribute.</br>
+ * The distribution is reserved to the site <strong>http://android2ee.com</strong>.</br>
+ * The intelectual property belongs to <strong>Mathias Seguy</strong>.</br>
+ * <em>http://mathias-seguy.developpez.com/</em></br> </br>
+ * 
+ * *****************************************************************************************************************</br>
+ *  Ce code est libre de toute utilisation mais n'est pas distribuable.</br>
+ *  Sa distribution est reservée au site <strong>http://android2ee.com</strong>.</br> 
+ *  Sa propriété intellectuelle appartient à <strong>Mathias Seguy</strong>.</br>
+ *  <em>http://mathias-seguy.developpez.com/</em></br> </br>
+ * *****************************************************************************************************************</br>
+ */
 package com.android2ee.android.tuto.communication.bluetooth.gui;
 
 import java.io.IOException;
@@ -8,9 +37,14 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -24,21 +58,28 @@ import com.android2ee.android.tuto.communication.bluetooth.R;
 import com.android2ee.android.tuto.communication.bluetooth.gui.arrayadapter.BluetoothAdapterCallBack;
 import com.android2ee.android.tuto.communication.bluetooth.gui.arrayadapter.BluetoothMessageAdapter;
 import com.android2ee.android.tuto.communication.bluetooth.gui.model.BluetoothMessage;
+import com.android2ee.android.tuto.communication.bluetooth.service.CommunicationService;
 
+/**
+ * @author Mathias Seguy (Android2EE)
+ * @goals
+ *        This class aims to displays and send message to the other device
+ *        There is no communication here, it's just gui
+ *        The activity is bound to the communicationService in charge of the bluetooth communication
+ */
 public class CommunicationActivity extends Activity implements BluetoothAdapterCallBack {
 	/**
 	 * Edt Message
 	 */
 	EditText edtMessage;
 	/**
-	 * button Add
+	 * button send
 	 */
-	Button btnAdd;
+	Button btnSend;
 	/**
 	 * The listView
 	 */
 	ListView lstMessage;
-
 	/**
 	 * The items to display
 	 */
@@ -52,33 +93,23 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	 */
 	private BluetoothAdapter bluetoothAdapter;
 	/**
-	 * The handler that update the UI using data thrown by the ConnectedThread
+	 * The bluetooth client socket
 	 */
-	Handler myHandlerSocketConnected;
-	/**
-	 * The message.isWhat launched to the handler
-	 */
-	private final int MESSAGE_READ = 4112008;
-	/**
-	 * The thread that manage the data exchange between the both device
-	 */
-	ConnectedThread connectedThread;
-
+	BluetoothSocket bluetoothClientSocket = null;
 	/**
 	 * Strings to display the devices name
 	 */
 	String localDeviceName = null, remoteDeviceName = null;
-	/**
-	 * Boolean to create the communication thread only once
-	 */
-	boolean alreadyManagedCommunication = false;
+
 	/******************************************************************************************/
 	/** Managing life cycle **************************************************************************/
 	/******************************************************************************************/
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		Log.e("CommunicationActivity", "onCreate");
 		super.onCreate(savedInstanceState);
+		MyApplication.getInstance().setComActivity(this);
 		setContentView(R.layout.activity_main);
 		// Les findViewById
 		instantiateView();
@@ -86,32 +117,12 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 		initializeListView();
 		// Add listener on ListView and button
 		addListeners();
-		// We suppose the device we want to talk with is found
-		// Here two cases, we act as a server or as a client
-		// But in reality, you have cover those 2 cases by implementing the both
-		// Initialise the Handler that will listen to the connection exchange between the devices
-		myHandlerSocketConnected = new Handler() {
-			/*
-			 * (non-Javadoc)
-			 * 
-			 * @see android.os.Handler#handleMessage(android.os.Message)
-			 */
-			@Override
-			public void handleMessage(Message msg) {
-				byte[] readBuf = (byte[]) msg.obj;
-				// construct a string from the valid bytes in the buffer
-				String readMessage = new String(readBuf, 0, msg.arg1);
-				handleInComingMessage(readMessage);
-			}
-
-		};
+		// retrieve the blueToothAdpater
 		bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+		// bind with the service that handles the bluetooth communication
 		if (MyApplication.getInstance().getBluetoothSocket() != null) {
-			Log.e("CommunicationActivity", "onCreate Socket != null connected "
-					+ MyApplication.getInstance().getBluetoothSocket().isConnected());
-			manageConnectedSocket();
-		} else {
-			Log.e("CommunicationActivity", "onCreate Socket connected == null ");
+			// the service is already started so bind to it
+			bindService(new Intent(this, CommunicationService.class), onService, BIND_AUTO_CREATE);
 		}
 	}
 
@@ -122,7 +133,13 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	 */
 	@Override
 	protected void onResume() {
+		Log.e("CommunicationActivity", "onResume");
 		super.onResume();
+		// register the receiver that listens for Intent launched by the communication service
+		registerReceiver(communicationServiceReceiver, new IntentFilter(
+				CommunicationService.BLUETOOTH_COMMUNICATION_INTENT_ACTION));
+		// if the socket is not set yet, => you have to connect to the other device as a client
+		// else the other device is already connected to you
 		if (MyApplication.getInstance().getBluetoothSocket() == null) {
 			Log.e("CommunicationActivity", "onResume Socket connected ==null");
 			// Initialize the connection as a client:
@@ -137,18 +154,38 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	/*
 	 * (non-Javadoc)
 	 * 
+	 * @see android.app.Activity#onPause()
+	 */
+	@Override
+	protected void onPause() {
+		Log.e("CommunicationActivity", "onPause");
+		super.onPause();
+		// unregister the receiver that listens for Intent launched by the communication service
+		unregisterReceiver(communicationServiceReceiver);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see android.app.Activity#onDestroy()
 	 */
 	@Override
 	protected void onDestroy() {
-		try {
-			if (MyApplication.getInstance().getBluetoothSocket() != null) {
-				MyApplication.getInstance().getBluetoothSocket().close();
-			}
-		} catch (IOException e) {
-			Log.e("CommunicationActivity", "onDestroy", e);
-		}
+		Log.e("CommunicationActivity", "onDestroy");
 		super.onDestroy();
+		// unbind to the service
+		unbindService(onService);
+		// reset bluetooth connection
+		MyApplication.getInstance().resetBluetoothSocket(true);
+		// ensure the client thread dies
+		if (bluetoothClientSocket != null) {
+			try {
+				bluetoothClientSocket.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/****************************************************************************************/
@@ -158,12 +195,13 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	/** * Create a server socket connection Acting like a client */
 	private void creatingClientSocketConnection() {
 		try {
-			// find the device you want to connect to
-			BluetoothDevice bluetoothDevice = MyApplication.getInstance().getRemoteDevice();// blueToothDevice.get("knowDeviceName");blueT
+			// find the device you want to connect to (already stored in the application)
+			// It's the one discovered and choose by the user
+			BluetoothDevice bluetoothDevice = MyApplication.getInstance().getRemoteDevice();
+			// if a device has been choosen
 			if (bluetoothDevice != null) {
 				// Ask to connect to with that UUID
-				final BluetoothSocket bluetoothClientSocket = bluetoothDevice
-						.createRfcommSocketToServiceRecord(MyApplication.MY_UUID);
+				bluetoothClientSocket = bluetoothDevice.createRfcommSocketToServiceRecord(MyApplication.MY_UUID);
 				// The thread that will listen for client to connect
 				Thread acceptClientThread = new Thread() {
 					@Override
@@ -186,10 +224,13 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 							}
 							return;
 						}
-						// Do work to manage the connection (in a separate thread)
-						manageConnectedSocket();
+						// So the socket has been created and store
+						// the CommunicationService is so launched
+						// so bind to it
+						bindToService();
 					}
 				};
+				// start the thread
 				acceptClientThread.start();
 			}
 		} catch (IOException e) {
@@ -198,86 +239,55 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 
 	}
 
-	/*************************************************************************************/
-	/** Managing data exchange **************************************************************/
-	/*************************************************************************************/
-
-
 	/**
-	 * * This method is called when a Bluetooth socket is created and the attribute bluetoothSocket
-	 * is instanciated
+	 * Just bind to the CommunicationService service
 	 */
-	private void manageConnectedSocket() {
-		if (!alreadyManagedCommunication) {
-			// launch the connected thread
-			connectedThread = new ConnectedThread();
-			connectedThread.start();
-			alreadyManagedCommunication = true;
-			// And if you want to talk somewhere in your code, just use the following lines:
-			String str = "message";
-			connectedThread.write(str.getBytes());
-		}
-
+	private void bindToService() {
+		// the service is already started so bind to it
+		bindService(new Intent(this, CommunicationService.class), onService, BIND_AUTO_CREATE);
 	}
 
-	/** * The thread that manage communication */
-	private class ConnectedThread extends Thread {
-
-		/* (non-Javadoc) * @see java.lang.Thread#run() */
-		public void run() {
-			byte[] buffer = new byte[1024]; // buffer store for the stream
-			int bytes; // bytes returned from read()
-			// Keep listening to the InputStream until an exception occurs
-			while (true) {
-				try {
-					// Read from the InputStream
-					bytes = MyApplication.getInstance().getInputSocketStream().read(buffer);
-					// Send the obtained bytes to the UI Activity
-					myHandlerSocketConnected.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
-				} catch (IOException e) {
-					Log.e("CommunicationActivity", "ConnectedThread run", e);
-					break;
-				}
-			}
-		}
-
-		/* Call this from the main Activity to send data to the remote device */
-		public void write(byte[] bytes) {
-			try {
-				// outputSocketStream.write(bytes);
-				MyApplication.getInstance().getOutputSocketStream().write(bytes);
-			} catch (IOException e) {
-				Log.e("CommunicationActivity", "ConnectedThread write", e);
-			}
-		}
-
-		/* Call this from the main Activity to shutdown the connection */
-		public void cancel() {
-			try {
-				MyApplication.getInstance().getBluetoothSocket().close();
-			} catch (IOException e) {
-				Log.e("CommunicationActivity", "ConnectedThread cancel", e);
-			}
-		}
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see android.app.Activity#onPause()
+	/*************************************************************************************/
+	/** Managing bind with the communicationService **************************************************************/
+	/*************************************************************************************/
+	/**
+	 * The service that handles the bluetooth communication between the devices
 	 */
-	@Override
-	protected void onPause() {
-		// TODO Auto-generated method stub
-		super.onPause();
-	}
+	private CommunicationService comService = null;
+	/**
+	 * The serviceConnection object
+	 */
+	private ServiceConnection onService = new ServiceConnection() {
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			comService = null;
+		}
+
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
+			comService = ((CommunicationService.LocalBinder) service).getService();
+			// now the send button can be enable
+			btnSend.setEnabled(true);
+		}
+	};
+	/**
+	 * The one that listen for the intent sent by the service
+	 */
+	private BroadcastReceiver communicationServiceReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			// just retrieve the message and use it:
+			handleInComingMessage(intent.getStringExtra(CommunicationService.BLUETOOTH_MESSAGE));
+		}
+
+	};
 
 	/******************************************************************************************/
 	/** Instantiate Activity **************************************************************************/
 	/******************************************************************************************/
 
 	/**
-	 * 
+	 * As usual
 	 */
 	private void initializeListView() {
 		// Instanciate the listView
@@ -288,7 +298,7 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	}
 
 	/**
-	 * 
+	 * As usual
 	 */
 	private void addListeners() {
 		lstMessage.setOnItemClickListener(new OnItemClickListener() {
@@ -298,20 +308,21 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 			}
 		});
 		// Add listener
-		btnAdd.setOnClickListener(new View.OnClickListener() {
+		btnSend.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				btnAddClicked();
+				btnSendClicked();
 			}
 		});
 	}
 
 	/**
-	 * 
+	 * As usual
 	 */
 	private void instantiateView() {
 		edtMessage = (EditText) findViewById(R.id.edt_message);
-		btnAdd = (Button) findViewById(R.id.btn_add);
+		btnSend = (Button) findViewById(R.id.btn_add);
+		btnSend.setEnabled(false);
 		lstMessage = (ListView) findViewById(R.id.lsv_messages);
 		Log.e(this.getClass().getSimpleName(), "My log message");
 	}
@@ -327,26 +338,25 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	 */
 	@Override
 	public void itemSelected(int position) {
-		BluetoothMessage human = arrayAdapter.getItem(position);
-		edtMessage.setText(human.getMessage());
+		BluetoothMessage btMessage = arrayAdapter.getItem(position);
+		edtMessage.setText(btMessage.getMessage());
 	}
 
 	/**
-	 * Called when a click is done on the btnAdd
+	 * Called when a click is done on the btnSend
 	 */
-	private void btnAddClicked() {
+	private void btnSendClicked() {
 		// Read EditText
 		String str = edtMessage.getText().toString();
 		if (localDeviceName == null) {
 			localDeviceName = bluetoothAdapter.getName();
 		}
+		// Build the Bluetooth message
 		BluetoothMessage toto = new BluetoothMessage(localDeviceName, str, true);
-		// Add the string to the txvMessages
+		// Add it to the list
 		arrayAdapter.add(toto);
-		connectedThread.write(str.getBytes());
-		// Or
-		// items.add(str);
-		// arrayAdapter.notifyDataSetChanged();
+		// Ask the communication service to send the message
+		comService.sendMessage(str);
 		// and flush the editText
 		edtMessage.setText("");
 	}
@@ -355,14 +365,13 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	 * @param readMessage
 	 */
 	private void handleInComingMessage(String readMessage) {
+		// Build the Bluetooth message
 		if (remoteDeviceName == null) {
 			remoteDeviceName = MyApplication.getInstance().getBluetoothSocket().getRemoteDevice().getName();
 		}
 		BluetoothMessage toto = new BluetoothMessage(remoteDeviceName, readMessage, false);
 		// Add the string to the txvMessages
 		arrayAdapter.add(toto);
-		// update the Gui with the message
-		// mConversationArrayAdapter.add(mConnectedDeviceName+":  " + readMessage);
 	}
 
 }

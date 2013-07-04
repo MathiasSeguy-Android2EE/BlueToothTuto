@@ -45,22 +45,27 @@ import com.android2ee.android.tuto.communication.bluetooth.R;
 /**
  * @author Mathias Seguy (Android2EE)
  * @goals
- *        This class aims to:
- *        <ul>
- *        <li></li>
- *        </ul>
+ *        This class aims to the arrayAdpater for listViews that display BlueTooth device
  */
 public class BluetoothDevicesAdapter extends ArrayAdapter<BluetoothDevice> implements BluetoothAdapterCallBack {
 
+	/**
+	 * Layout inflater
+	 */
 	LayoutInflater inflater;
 
+	/**
+	 * Callback
+	 */
 	BluetoothAdapterCallBack callBack;
 
 	/**
+	 * Constructor
+	 * 
 	 * @param context
-	 * @param resource
-	 * @param textViewResourceId
+	 *            the context
 	 * @param objects
+	 *            the list of objects to display
 	 */
 	public BluetoothDevicesAdapter(Context context, List<BluetoothDevice> objects) {
 		super(context, R.layout.item, objects);
@@ -102,9 +107,9 @@ public class BluetoothDevicesAdapter extends ArrayAdapter<BluetoothDevice> imple
 		return myview;
 	}
 
-//	/**
-//	 * @param position
-//	 */
+	// /**
+	// * @param position
+	// */
 	public void itemSelected(int position) {
 		callBack.itemSelected(position);
 	}
