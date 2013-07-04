@@ -85,8 +85,7 @@ public class CommunicationService extends Service {
 		// close the socket
 		connectedThread.cancel();
 		// Kill the thread
-			connectedThread.interrupt();
-		
+		connectedThread.interrupt();
 		super.onDestroy();
 	}
 
