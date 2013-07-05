@@ -8,7 +8,9 @@
         <item name="android:textSize">@dimen/textSize</item> 
         <item name="android:textStyle">bold</item>        
         <item name="android:layout_marginBottom">@dimen/marginVert</item>
-        <item name="android:layout_marginTop">@dimen/marginVert</item>
+        <item name="android:layout_marginTop">@dimen/marginVert</item>        
+        <item name="android:layout_marginRight">@dimen/marginHori</item>
+        <item name="android:layout_marginLeft">@dimen/marginHori</item>
     </style>
     <!-- Style for TextView -->
     <!-- ************************ -->

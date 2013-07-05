@@ -30,6 +30,7 @@
 package com.android2ee.android.tuto.communication.bluetooth.service;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import android.app.Service;
 import android.content.Intent;
@@ -55,6 +56,10 @@ public class CommunicationService extends Service {
 	 * The thread that manage the data exchange between the both device
 	 */
 	ConnectedThread connectedThread;
+	/**
+	 * Kill the thread
+	 */
+	private AtomicBoolean threadDead=new AtomicBoolean(false);
 	/******************************************************************************************/
 	/** Connection with the activity **************************************************************************/
 	/******************************************************************************************/
@@ -81,11 +86,11 @@ public class CommunicationService extends Service {
 	 */
 	@Override
 	public void onDestroy() {
-		Log.e("CommunicationService", "onDestroy");
-		// close the socket
-		connectedThread.cancel();
+		Log.e("CommunicationService", "onDestroy");		
 		// Kill the thread
 		connectedThread.interrupt();
+		threadDead.set(true);
+		alreadyManagedCommunication=false;
 		super.onDestroy();
 	}
 
@@ -109,6 +114,7 @@ public class CommunicationService extends Service {
 	 */
 	private void initialize() {
 		// Launch the Thread and all the communication stuff
+		threadDead.set(false);
 		manageConnectedSocket();
 	}
 
@@ -179,7 +185,7 @@ public class CommunicationService extends Service {
 			byte[] buffer = new byte[1024]; // buffer store for the stream
 			int bytes; // bytes returned from read()
 			// Keep listening to the InputStream until an exception occurs
-			while (true) {
+			while (!threadDead.get()) {
 				try {
 					// Read from the InputStream
 					bytes = MyApplication.getInstance().getInputSocketStream().read(buffer);

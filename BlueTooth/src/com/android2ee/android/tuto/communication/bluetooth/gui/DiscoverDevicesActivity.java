@@ -73,10 +73,10 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	 * The Bluetooth Adapter
 	 */
 	private BluetoothAdapter bluetoothAdapter;
-	 /**
+	/**
 	 * The blueToothServer Socket
 	 */
-	private BluetoothServerSocket bluetoothServerSocket=null;
+	private BluetoothServerSocket bluetoothServerSocket = null;
 	/**
 	 * The unique Request code send with the Intent BluetoothAdapter.ACTION_DISCOVERABLE when
 	 * starting the activty to discover bluetooth
@@ -266,10 +266,7 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 		lstDevices = (ListView) findViewById(R.id.lsv_devices);
 		initializeListView();
 		bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-		// Initialize the server connection
-		// because if the other device wants to connect to you, you need to be able to accept the
-		// connexion and you do that by implementing a server connexion
-		creatingServerSocketConnection();
+
 	}
 
 	/**
@@ -282,6 +279,11 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 		lstDevices.setAdapter(arrayAdapter);
 	}
 
+	/**
+	 * To know if an initialization is doen
+	 */
+	private boolean notInitialized = false;
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -291,51 +293,74 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	protected void onResume() {
 		Log.e("DiscoverDevicesActivity", "onResume");
 		super.onResume();
-		// We check if the Bluetooth state to update the Gui with it
-		if (bluetoothAdapter.isEnabled()) {
-			if (bluetoothAdapter.getScanMode() == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
-				// Ensure the button be discoverable is off
-				btnBeDiscoverable.setEnabled(false);
-				txvDiscoverableState.setText("SCAN_MODE_CONNECTABLE_DISCOVERABLE");
-			} else {
-				// Ensure the button be discoverable is on
-				btnBeDiscoverable.setEnabled(true);
-			}
-			if (bluetoothAdapter.isDiscovering()) {
-				// Ensure the button be discovery is off
-				btnStartDiscovery.setEnabled(false);
-			} else {
-				// Ensure the button be discovery is on
-				btnStartDiscovery.setEnabled(true);
-			}
-			// read bluetooth information (just FYI)
-			// String adress = bluetoothAdapter.getAddress();
-			// String name = bluetoothAdapter.getName();
-			// First check if the device is already paired:
-			Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-			// If there are paired devices
-			if (pairedDevices.size() > 0) {
-				// Loop through paired devices
-				for (BluetoothDevice device : pairedDevices) {
-					//add them to the list of avaiable devices
-					if (!foundDevices.contains(device)) {
-						foundDevices.add(device);
-						arrayAdapter.notifyDataSetChanged();
-					}
-					strLog.append("Already known paired devices : " + device.getName() + "\r\n");
-					Log.e("DiscoverDevicesActivity", "paired device " + device.getName() + ":" + device.getAddress());
+		if (!MyApplication.getInstance().isServiceOn()) {
+			Log.e("DiscoverDevicesActivity", "onResume Service Off");
+			// We check if the Bluetooth state to update the Gui with it
+			if (bluetoothAdapter.isEnabled()) {
+				if (bluetoothAdapter.getScanMode() == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
+					// Ensure the button be discoverable is off
+					btnBeDiscoverable.setEnabled(false);
+					txvDiscoverableState.setText("SCAN_MODE_CONNECTABLE_DISCOVERABLE");
+				} else {
+					// Ensure the button be discoverable is on
+					btnBeDiscoverable.setEnabled(true);
 				}
+				if (bluetoothAdapter.isDiscovering()) {
+					// Ensure the button be discovery is off
+					btnStartDiscovery.setEnabled(false);
+				} else {
+					// Ensure the button be discovery is on
+					btnStartDiscovery.setEnabled(true);
+				}
+				// read bluetooth information (just FYI)
+				// String adress = bluetoothAdapter.getAddress();
+				// String name = bluetoothAdapter.getName();
+				// First check if the device is already paired:
+				Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+				// If there are paired devices
+				if (pairedDevices.size() > 0) {
+					// Loop through paired devices
+					for (BluetoothDevice device : pairedDevices) {
+						// add them to the list of avaiable devices
+						if (!foundDevices.contains(device)) {
+							foundDevices.add(device);
+							arrayAdapter.notifyDataSetChanged();
+						}
+						strLog.append("Already known paired devices : " + device.getName() + "\r\n");
+						Log.e("DiscoverDevicesActivity",
+								"paired device " + device.getName() + ":" + device.getAddress());
+					}
+				}
+				txvLog.setText(strLog.toString());
+			} else {
+				txvLog.setText("BlueTooth disable");
+				txvDiscoverableState.setText("BlueTooth disable : can not be discoverable");
+				txvDiscoveryState.setText("BlueTooth disable : can not discover devices");
 			}
-			txvLog.setText(strLog.toString());
+			// register the Discoverability state changed
+			registerDiscovBroadcastReceiever();
+			// and kill the socket if it already exists to avoid socket exception latter
+			MyApplication.getInstance().resetBluetoothSocket();
+			// Initialize the server connection
+			// because if the other device wants to connect to you, you need to be able to accept
+			// the
+			// connexion and you do that by implementing a server connexion
+			creatingServerSocketConnection();
 		} else {
-			txvLog.setText("BlueTooth disable");
-			txvDiscoverableState.setText("BlueTooth disable : can not be discoverable");
-			txvDiscoveryState.setText("BlueTooth disable : can not discover devices");
+			Log.e("DiscoverDevicesActivity", "onResume Service On");
+			notInitialized = true;
+			if (MyApplication.getInstance().isJustQuitingComActivity()) {
+				// the service is on, the comActivity just quit
+				// the user just wants to quit the application and not come back to
+				// discoveringActivity
+				MyApplication.getInstance().isJustQuitingComActivity(false);
+				finish();
+			} else {
+				// the communication service is on
+				// just relaunch the CommunicationActivity
+				startCommunicationActivity();
+			}
 		}
-		// register the Discoverability state changed
-		registerDiscovBroadcastReceiever();
-		// and kill the socket if it already exists to avoid socket exception latter
-		MyApplication.getInstance().resetBluetoothSocket(false);
 	}
 
 	/* * (non-Javadoc) * * @see android.app.Activity#onPause() */
@@ -343,25 +368,30 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	protected void onPause() {
 		Log.e("DiscoverDevicesActivity", "onPause");
 		super.onPause();
-		// unregister the broacastreciever that are used during the discovery phase
-		unregisterDiscoveryBroadcastReceiver();
+		if (!notInitialized) {
+			// unregister the broacastreciever that are used during the discovery phase
+			unregisterDiscoveryBroadcastReceiver();
+			//and kill the serverSocketThread
+			try {
+				if(bluetoothServerSocket!=null) {
+					bluetoothServerSocket.close();
+				}
+			} catch (IOException e) {
+				Log.e("DiscoverDevicesActivity", "onPause bluetoothServerSocket.close()", e);
+			}
+		}
+		notInitialized=false;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see android.app.Activity#onDestroy()
 	 */
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
-		if(bluetoothServerSocket!=null) {
-			//Try to close the ServerSocket and as consequence kill the thread
-			try {
-				bluetoothServerSocket.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+
 	}
 
 	/***************************************************************************************/
@@ -385,13 +415,13 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 		}
 		// Ask for discovery
 		if (askForDiscoverability) {
-			//ask to be discoverable
+			// ask to be discoverable
 			startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE), REQUEST_DISCOVERABLE);
 			// here this activity is going on pause
 			// so it can listen for discovery change state (because onPause unregister BroadCast)
 			// => manage button and textView state in onActivityResult
 		} else {
-			//Already discoverable, update gui
+			// Already discoverable, update gui
 			txvDiscoverableState.setText("SCAN_MODE_CONNECTABLE_DISCOVERABLE");
 			startListeningNewBlueToothDevice();
 			strLog.append("SCAN_MODE_CONNECTABLE_DISCOVERABLE is on \r\n");
@@ -416,8 +446,6 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 				btnBeDiscoverable.setEnabled(false);
 			} else {
 				isDiscoverable = false;
-				// no need to stay anymore the user don't want to set bluetooth
-				finish();
 			}
 		}
 	}
@@ -434,14 +462,12 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	 */
 	@Override
 	public void itemSelected(int position) {
-		//A device has been choose by the user, connect with it
+		// A device has been choose by the user, connect with it
 		Toast.makeText(this, "Item selected : " + position, Toast.LENGTH_SHORT).show();
-		//Store the device to connect with
+		// Store the device to connect with
 		MyApplication.getInstance().setRemoteDevice(arrayAdapter.getItem(position));
-		//start the communication activity
+		// start the communication activity
 		startCommunicationActivity();
-		//and die
-		finish();
 	}
 
 	/**
@@ -454,7 +480,7 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	/****************************************************************************************/
 	/** Managing connection *******************************************************************/
 	/****************************************************************************************/
-	
+
 	/**
 	 * * Create a server socket connection Acting like a server
 	 * Because in this activity a server request connection can be sent by the other device
@@ -462,10 +488,8 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 	 */
 	private void creatingServerSocketConnection() {
 		try {
-			if(bluetoothServerSocket==null) {
 			bluetoothServerSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(
 					MyApplication.MY_BLUETOOTH_SERVER_NAME, MyApplication.MY_UUID);
-			}
 			// The thread that will listen for client to connect
 			Thread acceptServerThread = new Thread() {
 				@Override
@@ -473,8 +497,9 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 					// Keep listening until exception occurs or a socket is returned
 					while (true) {
 						try {
-							//Wait for connection request and accept it
-							//once it's accpeted, store the Socket to use it in the communication activity
+							// Wait for connection request and accept it
+							// once it's accpeted, store the Socket to use it in the communication
+							// activity
 							MyApplication.getInstance().setBluetoothSocket(bluetoothServerSocket.accept());
 							// If a connection was accepted
 							if (MyApplication.getInstance().getBluetoothSocket() != null) {
@@ -496,7 +521,7 @@ public class DiscoverDevicesActivity extends Activity implements BluetoothAdapte
 			};
 			acceptServerThread.start();
 		} catch (IOException e) {
-			Log.e("DiscoverDevicesActivity", "creatingServerSocketConnection", e);
+			Log.e("DiscoverDevicesActivity", "creatingServerSocketConnection", e);			
 		}
 	}
 

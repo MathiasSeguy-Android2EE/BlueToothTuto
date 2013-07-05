@@ -10,28 +10,59 @@
     tools:context=".CommunicationActivity" >
 
     <TextView
+        style="@style/styleTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/translucent_selector"
         android:gravity="center"
-        android:text="@string/hello_world"
-        android:background="@drawable/translucent_selector" 
-        style="@style/styleTitle"/>
+        android:text="@string/hello_world" />
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content" 
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btn_start_service"
+            style="@style/styleBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/button"
+            android:text="@string/btn_start_service" />
+
+        <Button
+            android:id="@+id/btn_stop_service"
+            style="@style/styleBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/button"
+            android:text="@string/btn_stop_service" />
+
+        <Button
+            android:id="@+id/btn_kill_service"
+            style="@style/styleBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/button"
+            android:text="@string/btn_kill_service" />
+    </LinearLayout>
 
     <EditText
         android:id="@+id/edt_message"
+        style="@style/styleEdt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/edt_dosomething"
-        android:inputType="text|textCapSentences"
-        style="@style/styleEdt"/>
+        android:inputType="text|textCapSentences" />
 
     <Button
         android:id="@+id/btn_add"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+            style="@style/styleBtn"
         android:layout_gravity="center"
-        android:text="@string/btn_add"
-        android:background="@drawable/button"/>
+        android:background="@drawable/button"
+        android:text="@string/btn_add" />
 
     <ListView
         android:id="@+id/lsv_messages"

@@ -77,6 +77,18 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	 */
 	Button btnSend;
 	/**
+	 * button send
+	 */
+	Button btnStartService;
+	/**
+	 * button send
+	 */
+	Button btnStopService;
+	/**
+	 * button send
+	 */
+	Button btnKillService;
+	/**
 	 * The listView
 	 */
 	ListView lstMessage;
@@ -100,6 +112,15 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	 * Strings to display the devices name
 	 */
 	String localDeviceName = null, remoteDeviceName = null;
+	/**
+	 * The IntentFilter to listen for the Intent sent by the ComunicationService
+	 */
+	IntentFilter comServiceListener = new IntentFilter(CommunicationService.BLUETOOTH_COMMUNICATION_INTENT_ACTION);
+
+	/**
+	 * To know if the receiever that listen for ComService Intent is registred
+	 */
+	private boolean isReceieverRegistred = false;
 
 	/******************************************************************************************/
 	/** Managing life cycle **************************************************************************/
@@ -109,7 +130,6 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	protected void onCreate(Bundle savedInstanceState) {
 		Log.e("CommunicationActivity", "onCreate");
 		super.onCreate(savedInstanceState);
-		MyApplication.getInstance().setComActivity(this);
 		setContentView(R.layout.activity_main);
 		// Les findViewById
 		instantiateView();
@@ -123,6 +143,9 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 		if (MyApplication.getInstance().getBluetoothSocket() != null) {
 			// the service is already started so bind to it
 			bindService(new Intent(this, CommunicationService.class), onService, BIND_AUTO_CREATE);
+			// and update the button state
+			btnStopService.setEnabled(true);
+			btnKillService.setEnabled(true);
 		}
 	}
 
@@ -135,9 +158,10 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 	protected void onResume() {
 		Log.e("CommunicationActivity", "onResume");
 		super.onResume();
+		MyApplication.getInstance().setComActivity(this);
 		// register the receiver that listens for Intent launched by the communication service
-		registerReceiver(communicationServiceReceiver, new IntentFilter(
-				CommunicationService.BLUETOOTH_COMMUNICATION_INTENT_ACTION));
+		registerReceiver(communicationServiceReceiver, comServiceListener);
+		isReceieverRegistred=true;
 		// if the socket is not set yet, => you have to connect to the other device as a client
 		// else the other device is already connected to you
 		if (MyApplication.getInstance().getBluetoothSocket() == null) {
@@ -161,7 +185,12 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 		Log.e("CommunicationActivity", "onPause");
 		super.onPause();
 		// unregister the receiver that listens for Intent launched by the communication service
-		unregisterReceiver(communicationServiceReceiver);
+		if(isReceieverRegistred) {
+			unregisterReceiver(communicationServiceReceiver);
+			isReceieverRegistred=false;
+		}
+		// release MyApp from this
+		MyApplication.getInstance().setComActivity(null);
 	}
 
 	/*
@@ -174,18 +203,10 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 		Log.e("CommunicationActivity", "onDestroy");
 		super.onDestroy();
 		// unbind to the service
-		unbindService(onService);
-		// reset bluetooth connection
-		MyApplication.getInstance().resetBluetoothSocket(true);
-		// ensure the client thread dies
-		if (bluetoothClientSocket != null) {
-			try {
-				bluetoothClientSocket.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		if (comService != null) {
+			unbindService(onService);
 		}
+
 	}
 
 	/****************************************************************************************/
@@ -268,6 +289,9 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 			comService = ((CommunicationService.LocalBinder) service).getService();
 			// now the send button can be enable
 			btnSend.setEnabled(true);
+			// and so for Stop and Kill Service buttons
+			btnStopService.setEnabled(true);
+			btnKillService.setEnabled(true);
 		}
 	};
 	/**
@@ -314,6 +338,27 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 				btnSendClicked();
 			}
 		});
+		// Add listener
+		btnStartService.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				btnStartServClicked();
+			}
+		});
+		// Add listener
+		btnStopService.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				btnStopServClicked();
+			}
+		});
+		// Add listener
+		btnKillService.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				btnKillServClicked();
+			}
+		});
 	}
 
 	/**
@@ -323,6 +368,12 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 		edtMessage = (EditText) findViewById(R.id.edt_message);
 		btnSend = (Button) findViewById(R.id.btn_add);
 		btnSend.setEnabled(false);
+		btnStartService = (Button) findViewById(R.id.btn_start_service);
+		btnStartService.setEnabled(false);
+		btnStopService = (Button) findViewById(R.id.btn_stop_service);
+		btnStopService.setEnabled(false);
+		btnKillService = (Button) findViewById(R.id.btn_kill_service);
+		btnKillService.setEnabled(false);
 		lstMessage = (ListView) findViewById(R.id.lsv_messages);
 		Log.e(this.getClass().getSimpleName(), "My log message");
 	}
@@ -374,4 +425,63 @@ public class CommunicationActivity extends Activity implements BluetoothAdapterC
 		arrayAdapter.add(toto);
 	}
 
+	/**
+	 * Start the service and bind to it
+	 */
+	private void btnStartServClicked() {
+		// start the service
+		MyApplication.getInstance().startService();
+		// the service is already started so bind to it
+		bindService(new Intent(this, CommunicationService.class), onService, BIND_AUTO_CREATE);
+		registerReceiver(communicationServiceReceiver, comServiceListener);
+		isReceieverRegistred=true;
+		// update button state
+		// and so for Stop and Kill Service buttons
+		btnStopService.setEnabled(true);
+		btnSend.setEnabled(true);
+		btnKillService.setEnabled(true);
+		btnStartService.setEnabled(false);
+	}
+
+	/**
+	 * Stop the service
+	 * But don't release the connection
+	 */
+	private void btnStopServClicked() {
+		// unbind to the service
+		unbindService(onService);
+		if(isReceieverRegistred) {
+			unregisterReceiver(communicationServiceReceiver);
+			isReceieverRegistred=false;
+		}
+		// stop the service
+		MyApplication.getInstance().stopService();
+		// and so for Stop and Kill Service buttons
+		btnStartService.setEnabled(true);
+		btnStopService.setEnabled(false);
+		btnSend.setEnabled(false);
+	}
+
+	/**
+	 * Kill the service
+	 * Stop the service
+	 * Release the Socket
+	 * Finish this activity
+	 */
+	private void btnKillServClicked() {
+		// kill the service :
+		// unbind first
+		if (comService != null) {
+			unbindService(onService);
+			if(isReceieverRegistred) {
+				unregisterReceiver(communicationServiceReceiver);
+				isReceieverRegistred=false;
+			}
+			comService = null;
+		}
+		// kill the service: release socket and kill service
+		MyApplication.getInstance().killService();
+		// and die
+		finish();
+	}
 }

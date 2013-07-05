@@ -126,72 +126,82 @@ public class MyApplication extends Application {
 	 * @param bluetoothSocket
 	 *            the bluetoothSocket to set
 	 */
-	public  final void  setBluetoothSocket(BluetoothSocket bluetoothSocket) {
+	public final void setBluetoothSocket(BluetoothSocket bluetoothSocket) {
 		Log.e("MyaApplication",
 				"BlueToothSocket set :" + bluetoothSocket + " is connected " + bluetoothSocket.isConnected());
 		// First store it
-		syncBluetoothSocketModifier(true,bluetoothSocket);
+		syncBluetoothSocketModifier(true, bluetoothSocket);
 		// Then get the input and output streams
 		try {
-			syncInputSocketStream(true,syncBluetoothSocketModifier(false,null).getInputStream());
+			syncInputSocketStream(true, syncBluetoothSocketModifier(false, null).getInputStream());
 			outputSocketStream = this.bluetoothSocket.getOutputStream();
 		} catch (IOException e) {
 			Log.e("MApplication:onCreate", "setBluetoothSocket", e);
 		}
 		// then launch the communication service
-		startService(communicationServiceIntent);
+		startService();
 	}
 
 	/**
 	 * Ensure that modifications of the Socket is ThreadSafe
-	 * @param set if true then this function act like a setter
-	 * @param bluetoothSocket the socket to set
+	 * 
+	 * @param set
+	 *            if true then this function act like a setter
+	 * @param bluetoothSocket
+	 *            the socket to set
 	 * @return bluetoothSocket
 	 */
-	private synchronized BluetoothSocket syncBluetoothSocketModifier(boolean set,BluetoothSocket bluetoothSocket) {
-		if(set) {
+	private synchronized BluetoothSocket syncBluetoothSocketModifier(boolean set, BluetoothSocket bluetoothSocket) {
+		if (set) {
 			this.bluetoothSocket = bluetoothSocket;
 		}
 		return this.bluetoothSocket;
 	}
-	
+
 	/**
 	 * Ensure that modification of the inputSocketStream is ThreadSafe
-	 * @param set if true then this function act like a setter
-	 * @param inputSocketStream the inputSocketStream to set
+	 * 
+	 * @param set
+	 *            if true then this function act like a setter
+	 * @param inputSocketStream
+	 *            the inputSocketStream to set
 	 * @return inputSocketStream
 	 */
-	private synchronized InputStream syncInputSocketStream(boolean set,InputStream inputSocketStream) {
-		if(set) {
+	private synchronized InputStream syncInputSocketStream(boolean set, InputStream inputSocketStream) {
+		if (set) {
 			this.inputSocketStream = inputSocketStream;
 		}
 		return this.inputSocketStream;
 	}
-	
+
 	/**
 	 * Ensure that modification of the outputSocketStream is ThreadSafe
-	 * @param set if true then this function act like a setter
-	 * @param outputSocketStream the outputSocketStream to set
+	 * 
+	 * @param set
+	 *            if true then this function act like a setter
+	 * @param outputSocketStream
+	 *            the outputSocketStream to set
 	 * @return outputSocketStream
 	 */
-	private synchronized OutputStream syncOutputSocketStream(boolean set,OutputStream outputSocketStream) {
-		if(set) {
+	private synchronized OutputStream syncOutputSocketStream(boolean set, OutputStream outputSocketStream) {
+		if (set) {
 			this.outputSocketStream = outputSocketStream;
 		}
 		return this.outputSocketStream;
 	}
+
 	/**
 	 * @return the inputSocketStream
 	 */
 	public final InputStream getInputSocketStream() {
-		return syncInputSocketStream(false,null);
+		return syncInputSocketStream(false, null);
 	}
-	
+
 	/**
 	 * @return the outputSocketStream
 	 */
 	public final OutputStream getOutputSocketStream() {
-		return syncOutputSocketStream(false,null);
+		return syncOutputSocketStream(false, null);
 	}
 
 	/**
@@ -201,16 +211,20 @@ public class MyApplication extends Application {
 		return syncBluetoothSocketModifier(false, null);
 	}
 
+	
 	/**
-	 * @param bluetoothSocket
-	 *            the bluetoothSocket to set
+	 * ReleaseBlueToothSocket:
+	 * Stop CommunicationService
+	 * Close socket
+	 * Finish communication Activity
+	 * Set Socket and its io to null
 	 */
-	public final void resetBluetoothSocket(boolean startDiscover) {
+	public final void resetBluetoothSocket() {
 		Log.e("MyaApplication", "BlueToothSocket resetBluetoothSocket : was " + bluetoothSocket);
-		stopService(communicationServiceIntent);
+		stopService();
 		if (getBluetoothSocket() != null) {
 			try {
-				// then die
+				// then close
 				getBluetoothSocket().close();
 			} catch (IOException e) {
 				Log.e("CommunicationActivity", "resetBluetoothSocket ", e);
@@ -220,16 +234,67 @@ public class MyApplication extends Application {
 			// kill the communication activity
 			comActivity.finish();
 			comActivity = null;
-			// and start the Discovery one
-			if (startDiscover) {
-				startActivity(new Intent(this, DiscoverDevicesActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-			}
 		}
 		syncBluetoothSocketModifier(true, null);
 		syncInputSocketStream(true, null);
 		syncOutputSocketStream(true, null);
 	}
 
+	/******************************************************************************************/
+	/** Manage service **************************************************************************/
+	/******************************************************************************************/
+	private boolean serviceOn=false;
+	public boolean isServiceOn() {
+		return serviceOn;
+	}
+	/**
+	 * Start the service
+	 */
+	public void startService() {
+		startService(communicationServiceIntent);
+		serviceOn=true;
+	}
+
+	/**
+	 * Stop the service
+	 */
+	public void stopService() {
+		stopService(communicationServiceIntent);
+		serviceOn=false;
+	}
+
+	/**
+	 * Kill the service and the socket
+	 * same as calling resetBluetoothSocket
+	 */
+	public void killService() {
+		resetBluetoothSocket();
+	}
+	
+	/******************************************************************************************/
+	/** Managing the activity flow **************************************************************************/
+	/******************************************************************************************/
+
+	/**
+	 * To know if we just leave the communicationActivity
+	 * or if we launch the application to fall in the discoveryActivity directly
+	 */
+	private boolean justQuitingComActivity=false;
+	
+	/**
+	 * To know if we just leave the communicationActivity
+	 * @return true if just quitting com activity
+	 */
+	public boolean isJustQuitingComActivity() {
+		return justQuitingComActivity;
+	}
+	/**
+	 * To know if we just leave the communicationActivity
+	 * @return true if just quitting com activity
+	 */
+	public void isJustQuitingComActivity(boolean isJustQuitingComActivity) {
+		justQuitingComActivity=isJustQuitingComActivity;
+	}
 	/******************************************************************************************/
 	/** Get/set **************************************************************************/
 	/******************************************************************************************/
@@ -263,13 +328,16 @@ public class MyApplication extends Application {
 	public final void setThisDeviceName(String thisDeviceName) {
 		this.thisDeviceName = thisDeviceName;
 	}
-
+	
 	/**
 	 * @param comActivity
 	 *            the comActivity to set
 	 */
 	public final void setComActivity(CommunicationActivity comActivity) {
 		this.comActivity = comActivity;
+		if(comActivity==null) {
+			justQuitingComActivity=true;
+		}
 	}
 
 }
